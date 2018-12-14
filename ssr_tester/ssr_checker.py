@@ -8,8 +8,9 @@ import requests
 import xprint as xp
 
 
-class Tester():
+class Checker():
     def __init__(self):
+        xp.job('SSR Checker')
         dotenv.load_dotenv()
 
         self._python = os.getenv('PYTHON', '/usr/bin/python3')
