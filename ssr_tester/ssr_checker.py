@@ -33,15 +33,15 @@ class Checker():
         self._country_code = None
 
     def set_config(self,
-                   server='',
-                   port='',
-                   method='',
-                   password='',
-                   protocol='origin',
-                   proto_param='',
-                   obfs='plain',
-                   obfs_param='',
-                   local_port=13431,
+                   server: str = '',
+                   port: int = 443,
+                   method: str = '',
+                   password: str = '',
+                   protocol: str = 'origin',
+                   proto_param: str = '',
+                   obfs: str = 'plain',
+                   obfs_param: str = '',
+                   local_port: int = 13431,
                    ):
         self._server = server
         self._port = port

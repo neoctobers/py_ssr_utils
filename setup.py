@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="ssr-checker",
-    version="1.0.2",
+    version="1.0.3",
     author="@neoctobers",
     author_email="neoctobers@gmail.com",
     description="Shadowsocks(R) server healthy checker.",
