@@ -92,7 +92,7 @@ class Checker():
             f.write(json_content.encode('utf-8'))
             xp.success('Done.')
 
-    def check(self):
+    def is_available(self):
         cmd = '{python} {python_ssr} -c {ssr_config}'.format(
             python=self._python,
             python_ssr=self._python_ssr,
