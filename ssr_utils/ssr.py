@@ -2,6 +2,7 @@
 import time
 import xbase64
 import xprint as xp
+from .errors import SystemNotSupportedException
 
 
 class SSR:
@@ -312,15 +313,22 @@ class SSR:
     @property
     def is_available(self):
         import os
+        import sys
         import dotenv
         import tempfile
         import requests
         import subprocess
 
+        # check server
         if not self._server:
             xp.error('server not set.')
             return None
 
+        # check system
+        if 'win32' == sys.platform:
+            raise SystemNotSupportedException('Cannot use property `is_available` in windows.')
+
+        # READY
         xp.job('CHECK AVAILABLE')
 
         self._path_to_config = os.path.join(tempfile.gettempdir(), 'ssr_utils_{time}.json'.format(
@@ -420,4 +428,3 @@ def get_ssr_urls_by_subscribe(url: str,
         return list_ext.remove_and_unique(xbase64.decode(r.text).split('\n'))
 
     return list()
-
