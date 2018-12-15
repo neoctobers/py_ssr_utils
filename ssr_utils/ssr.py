@@ -417,7 +417,7 @@ def get_ssr_urls_by_subscribe(url: str,
 
     # success
     if r.status_code == 200:
-        return list_ext.sur(xbase64.decode(r.text).split('\n'))
+        return list_ext.remove_and_unique(xbase64.decode(r.text).split('\n'))
 
     return list()
 
