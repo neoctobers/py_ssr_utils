@@ -1,3 +1,4 @@
 # Shadowsocks(R) utils
 
-Only for linux.
+[>> Read the docs <<](https://neoctobers.readthedocs.io/en/latest/repo/ssr_utils.html)
+
