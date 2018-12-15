@@ -407,7 +407,7 @@ def get_ssr_urls_by_subscribe(url: str,
     import os
     import tempfile
     import requests_cache
-    import xfunctions as xf
+    import list_ext
 
     r = requests_cache.core.CachedSession(
         cache_name=os.path.join(tempfile.gettempdir(), 'ssr_utils_cache'),
@@ -417,9 +417,7 @@ def get_ssr_urls_by_subscribe(url: str,
 
     # success
     if r.status_code == 200:
-        r = xbase64.decode(r.text).split('\n')
-        r = xf.list_strip_and_remove(r)
-        r = xf.list_unique(r)
-        return r
+        return list_ext.sur(xbase64.decode(r.text).split('\n'))
 
     return list()
+
