@@ -28,7 +28,7 @@ class SSR:
         self._country_code = None
         pass
 
-    def __reset_server(self):
+    def __reset_attributes(self):
         self._server = ''
         self._port = 443
         self._method = ''
@@ -37,6 +37,17 @@ class SSR:
         self._proto_param = ''
         self._obfs = 'plain'
         self._obfs_param = ''
+
+        self._remarks = None
+        self._group = None
+
+        self._local_address = None
+        self._local_port = None
+        self._path_to_config = None
+
+        self._ip = None
+        self._country = None
+        self._country_code = None
 
     @property
     def remarks(self):
@@ -121,6 +132,8 @@ class SSR:
         return False
 
     def load(self, obj):
+        self.__reset_attributes()
+
         keys = {
             'server': '',
             'port': 443,
@@ -151,6 +164,7 @@ class SSR:
             remarks: str = None,
             group: str = None,
             ):
+        self.__reset_attributes()
 
         self._server = server
         self._port = port
@@ -226,7 +240,7 @@ class SSR:
 
     @url.setter
     def url(self, url: str):
-        self.__reset_server()
+        self.__reset_attributes()
 
         r = url.split('://')
 
