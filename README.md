@@ -1,3 +1,3 @@
-# Shadowsocks(R) server healthy checker
+# Shadowsocks(R) utils
 
 Only for linux.
