@@ -6,13 +6,13 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="ssr-utils",
-    version="2.0.2",
+    version="2.1.0",
     author="@neoctobers",
     author_email="neoctobers@gmail.com",
     description="Shadowsocks(R) utils.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/neoctobers/ssr_utils",
+    url="https://github.com/neoctobers/py_ssr_utils",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
