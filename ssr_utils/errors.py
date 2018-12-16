@@ -3,3 +3,8 @@
 
 class SystemNotSupportedException(Exception):
     pass
+
+
+class IpAddressInvalid(Exception):
+    pass
+

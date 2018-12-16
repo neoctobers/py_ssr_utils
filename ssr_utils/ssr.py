@@ -540,9 +540,6 @@ class SSR:
             xp.success('Done.')
 
         if my_ip:
-            xp.success('AVAILABLE')
-            xp.fx()
-
             self._ip = my_ip['ip']
             self._country = my_ip['country']
             self._country_code = my_ip['cc']
