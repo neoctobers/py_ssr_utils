@@ -1,7 +1,15 @@
 # coding:utf-8
+import os
+import sys
 import time
-import xbase64
+import socket
+import requests
+import subprocess
+import dotenv
+import tempfile
+import common_patterns
 import xprint as xp
+import xbase64
 from .errors import SystemNotSupportedException
 
 
@@ -19,6 +27,9 @@ class SSR:
         self._remarks = None
         self._group = None
 
+        self._server_ip = None
+        self._server_domain = None
+
         self._local_address = None
         self._local_port = None
         self._path_to_config = None
@@ -26,6 +37,8 @@ class SSR:
         self._ip = None
         self._country = None
         self._country_code = None
+
+        self._cmd = None
         pass
 
     def __reset_attributes(self):
@@ -40,6 +53,9 @@ class SSR:
 
         self._remarks = None
         self._group = None
+
+        self._server_ip = None
+        self._server_domain = None
 
         self._local_address = None
         self._local_port = None
@@ -96,6 +112,36 @@ class SSR:
     @group.setter
     def group(self, value: str):
         self._group = value
+
+    @property
+    def server_ip(self):
+        if self._server_ip:
+            return self._server_ip
+
+        # ip
+        if common_patterns.is_ip_address(self.server):
+            self._server_ip = self.server
+            return self._server_ip
+
+        # domain
+        self._server_domain = self.server
+
+        # domain 2 ip
+        self._server_ip = socket.gethostbyname(self._server_domain)
+        return self._server_ip
+
+    @property
+    def server_domain(self):
+        if self._server_domain:
+            return self._server_domain
+
+        # domain
+        if not common_patterns.is_ip_address(self.server):
+            self._server_domain = self.server
+            return self._server_domain
+
+        # None
+        return self._server_domain
 
     @property
     def local_address(self):
@@ -220,16 +266,16 @@ class SSR:
 
         return {
             'server': self._server,
-            '_port': self._port,
-            '_method': self._method,
-            '_password': self._password,
-            '_protocol': self._protocol,
-            '_proto_param': self._proto_param,
-            '_obfs': self._obfs,
-            '_obfs_param': self._obfs_param,
+            'port': self._port,
+            'method': self._method,
+            'password': self._password,
+            'protocol': self._protocol,
+            'proto_param': self._proto_param,
+            'obfs': self._obfs,
+            'obfs_param': self._obfs_param,
 
-            '_remarks': self.remarks,
-            '_group': self.group,
+            'remarks': self.remarks,
+            'group': self.group,
         }
 
     @property
@@ -352,13 +398,23 @@ class SSR:
 
     @property
     def json_string(self):
+        return self.get_json_string()
+
+    def get_json_string(self, by_server_ip: bool = False):
         # check attributes
         if self.invalid_attributes:
             return None
 
         json_string = '{\n'
-        json_string += '    "server": "{server}",\n' \
-                       '    "server_port": {server_port},\n' \
+
+        if by_server_ip:
+            json_string += '    "server": "{server}",\n'.format(server=self.server_ip)
+        else:
+            # by original server
+            json_string += '    "server": "{server}",\n'.format(server=self.server)
+
+        # other props
+        json_string += '    "server_port": {server_port},\n' \
                        '    "method": "{method}",\n' \
                        '    "password": "{password}",\n' \
                        '    "protocol": "{protocol}",\n' \
@@ -367,8 +423,7 @@ class SSR:
                        '    "obfs_param": "{obfs_param}",\n\n' \
                        '    "local_address": "{local_address}",\n' \
                        '    "local_port": {local_port}' \
-                       ''.format(server=self._server,
-                                 server_port=self._port,
+                       ''.format(server_port=self._port,
                                  method=self._method,
                                  password=self._password,
                                  protocol=self._protocol,
@@ -381,25 +436,18 @@ class SSR:
         json_string += '\n}'
         return json_string
 
-    def generate_config_file(self):
+    def generate_config_file(self, by_server_ip: bool = False):
         # check attributes
         if self.invalid_attributes:
             return None
 
         xp.about_t('Generating', self.path_to_config, 'config file')
         with open(self.path_to_config, 'wb') as f:
-            f.write(self.json_string.encode('utf-8'))
+            f.write(self.get_json_string(by_server_ip=by_server_ip).encode('utf-8'))
             xp.success('Done.')
 
     @property
     def is_available(self):
-        import os
-        import sys
-        import dotenv
-        import tempfile
-        import requests
-        import subprocess
-
         # check attributes
         if self.invalid_attributes:
             return None
@@ -409,32 +457,47 @@ class SSR:
             raise SystemNotSupportedException('Cannot use property `is_available` in windows.')
 
         # READY
+        dotenv.load_dotenv()
         xp.job('CHECK AVAILABLE')
 
         self._path_to_config = os.path.join(tempfile.gettempdir(), 'ssr_utils_{time}.json'.format(
             time=str(time.time()).replace('.', '').ljust(17, '0'),
         ))
 
-        # config file
-        self.generate_config_file()
-
         # cmd
-        dotenv.load_dotenv()
-        cmd = '{python} {python_ssr} -c {path_to_config}'.format(
+        self._cmd = '{python} {python_ssr} -c {path_to_config}'.format(
             python=os.getenv('PYTHON', '/usr/bin/python3'),
             python_ssr=os.getenv('PYTHON_SSR', '/repo/shadowsocksr/shadowsocks/local.py'),
             path_to_config=self.path_to_config,
         )
 
-        # sub progress
-        xp.about_t('Start a sub progress of SSR')
+        # By server_ip
+        self.generate_config_file(by_server_ip=True)
+
+        if self.__check_available_in_sub_progress(hint='by IP'):
+            self._server = self._server_ip
+            self.__delete_config_file()
+            return True
+
+        # By server/domain
+        if self.server_ip != self.server:
+            self.generate_config_file()
+            is_available = self.__check_available_in_sub_progress(hint='by Server/Domain')
+            self.__delete_config_file()
+            return is_available
+
+        return False
+
+    def __check_available_in_sub_progress(self, hint: str):
+        xp.about_t('Start a sub progress of SSR', hint)
         sub_progress_of_ssr = subprocess.Popen(
-            cmd.split(),
+            self._cmd.split(),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             preexec_fn=os.setsid,
         )
-        xp.wr(xp.Fore.LIGHTCYAN_EX + 'PID {pid} '.format(pid=sub_progress_of_ssr.pid))
+        gpid = os.getpgid(sub_progress_of_ssr.pid)
+        xp.wr(xp.Fore.LIGHTYELLOW_EX + '(G)PID {pid} '.format(pid=gpid))
 
         # wait, during the progress launching.
         for i in range(0, 5):
@@ -444,7 +507,6 @@ class SSR:
         xp.success(' Next.')
 
         # Request for IP
-
         my_ip = None
         try:
             xp.about_t('Try to request for the IP address')
@@ -466,14 +528,8 @@ class SSR:
             xp.error(e)
 
         finally:
-            gpid = os.getpgid(sub_progress_of_ssr.pid)
-
             xp.about_t('Kill SSR sub progress', 'PID {pid}'.format(pid=gpid))
             os.killpg(gpid, 9)
-            xp.success('Done.')
-
-            xp.about_t('Deleting', self.path_to_config, 'config file')
-            os.remove(self.path_to_config)
             xp.success('Done.')
 
         if my_ip:
@@ -486,6 +542,11 @@ class SSR:
             return True
 
         return False
+
+    def __delete_config_file(self):
+        xp.about_t('Deleting', self.path_to_config, 'config file')
+        os.remove(self.path_to_config)
+        xp.success('Done.')
 
 
 def get_ssr_urls_by_subscribe(url: str,
