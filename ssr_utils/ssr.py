@@ -484,6 +484,7 @@ class SSR:
         if self.__check_available_in_sub_progress(hint='by IP'):
             self._server = self._server_ip
             self.__delete_config_file()
+            print()
             return True
 
         # By server/domain
@@ -491,9 +492,11 @@ class SSR:
             self.generate_config_file()
             is_available = self.__check_available_in_sub_progress(hint='by Server/Domain')
             self.__delete_config_file()
+            print()
             return is_available
 
         return False
+
 
     def __check_available_in_sub_progress(self, hint: str):
         xp.about_t('Start a sub progress of SSR', hint)
