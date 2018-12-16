@@ -305,7 +305,7 @@ class SSR:
         for key in ['proto_param', 'obfs_param', 'remarks', 'group']:
             tmp_key = key.replace('_', '')
             if tmp_key in params_dict_keys:
-                setattr(self, key, params_dict[tmp_key])
+                setattr(self, '_{}'.format(key), params_dict[tmp_key])
 
     def __parse_ss(self, ss_base64: str):
         ss = xbase64.decode(ss_base64)
