@@ -10,6 +10,7 @@ import tempfile
 import common_patterns
 import xprint as xp
 import xbase64
+import urllib.parse
 from .errors import SystemNotSupportedException
 
 
@@ -328,7 +329,9 @@ class SSR:
             self.__parse_ss(r[1])
 
     def __parse_ssr(self, ssr_base64: str):
-        ssr = xbase64.decode(ssr_base64)
+        ssr = ssr_base64.split('#')[0]
+        ssr = xbase64.decode(ssr)
+
         if isinstance(ssr, bytes):
             return
 
@@ -354,7 +357,11 @@ class SSR:
                 setattr(self, '_{}'.format(key), params_dict[tmp_key])
 
     def __parse_ss(self, ss_base64: str):
-        ss = xbase64.decode(ss_base64)
+        ss = ss_base64.split('#')
+        if len(ss)>1:
+            self._remarks = urllib.parse.unquote(ss[1])
+        ss = xbase64.decode(ss[0])
+
         if isinstance(ss, bytes):
             return
 
