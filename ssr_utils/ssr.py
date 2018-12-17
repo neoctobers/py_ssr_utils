@@ -511,22 +511,21 @@ class SSR:
         try:
             xp.about_t('Try to request for the IP address')
 
-            # SSR socks5 proxy
-            proxy = 'socks5://{local_address}:{local_port}'.format(
+            # socks5 proxy by SSR progress
+            socks5_proxy = 'socks5://{local_address}:{local_port}'.format(
                 local_address=self.local_address,
                 local_port=self.local_port,
             )
 
-            proxies = {
-                'http': proxy,
-                'https': proxy,
-            }
-
             my_ip = requests.get(
                 url='https://api.myip.com/',
-                proxies=proxies,
+                proxies={
+                    'http': socks5_proxy,
+                    'https': socks5_proxy,
+                },
                 timeout=15,
             ).json()
+
             xp.success(my_ip['ip'])
 
         except ConnectionError:
@@ -562,24 +561,43 @@ def get_ssr_urls_by_subscribe(url: str,
                               cache_backend='sqlite',
                               cache_expire_after=300,
                               ):
+    # request session
     request_session = requests_cache.core.CachedSession(
         cache_name=os.path.join(tempfile.gettempdir(), 'ssr_utils_cache'),
         backend=cache_backend,
         expire_after=cache_expire_after,
     )
 
-    # local proxies
-    proxies = None
-    proxy = os.getenv('SOCKS5_PROXY', None)
-    if proxy:
-        proxies = {
-            'http': 'socks5://{proxy}'.format(proxy=proxy),
-            'https': 'socks5://{proxy}'.format(proxy=proxy),
+    # request headers
+    request_session.headers.update(
+        {
+            'User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                          'AppleWebKit/537.36 (KHTML, like Gecko) '
+                          'Chrome/71.0.3578.80 '
+                          'Safari/537.36'
         }
+    )
 
-    # get
-    r = request_session.get(url, proxies=proxies)
-    if r.status_code == 200:
-        return list_ext.remove_and_unique(xbase64.decode(r.text).split('\n'))
+    # local proxies
+    proxies = dict()
+
+    # http proxy
+    http_proxy = os.getenv('HTTP_PROXY', None)
+    if http_proxy:
+        proxies['http'] = http_proxy
+
+    # https proxy
+    https_proxy = os.getenv('HTTPS_PROXY', None)
+    if https_proxy:
+        proxies['https'] = https_proxy
+
+    # {} => None
+    if not proxies:
+        proxies = None
+
+    # get resp
+    resp = request_session.get(url, proxies=proxies)
+    if resp.status_code == 200:
+        return list_ext.remove_and_unique(xbase64.decode(resp.text).split('\n'))
 
     return list()
