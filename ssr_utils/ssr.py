@@ -174,16 +174,6 @@ class SSR:
         self._path_to_config = value
 
     @property
-    def _local_proxies(self):
-        proxy = os.getenv('SOCKS5_PROXY', None)
-        if proxy:
-            return {
-                'http': 'socks5://{proxy}'.format(proxy=proxy),
-                'https': 'socks5://{proxy}'.format(proxy=proxy),
-            }
-        return None
-
-    @property
     def ip(self):
         return self._ip
 
