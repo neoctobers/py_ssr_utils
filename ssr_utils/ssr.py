@@ -569,7 +569,6 @@ def get_ssr_urls_by_subscribe(url: str,
         backend=cache_backend,
         expire_after=cache_expire_after,
     )
-
     request_session.headers.update(
         {
             'User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
@@ -578,14 +577,9 @@ def get_ssr_urls_by_subscribe(url: str,
         }
     )
 
-    print(request_session)
 
+    # get
     r = request_session.get(url)
-
-    print(r)
-
-
-    # success
     if r.status_code == 200:
         return list_ext.remove_and_unique(xbase64.decode(r.text).split('\n'))
 
