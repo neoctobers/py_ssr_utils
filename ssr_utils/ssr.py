@@ -358,7 +358,7 @@ class SSR:
 
     def __parse_ss(self, ss_base64: str):
         ss = ss_base64.split('#')
-        if len(ss)>1:
+        if len(ss) > 1:
             self._remarks = urllib.parse.unquote(ss[1])
         ss = xbase64.decode(ss[0])
 
@@ -497,7 +497,6 @@ class SSR:
 
         return False
 
-
     def __check_available_in_sub_progress(self, hint: str):
         xp.about_t('Start a sub progress of SSR', hint)
         sub_progress_of_ssr = subprocess.Popen(
@@ -565,11 +564,26 @@ def get_ssr_urls_by_subscribe(url: str,
     import requests_cache
     import list_ext
 
-    r = requests_cache.core.CachedSession(
+    request_session = requests_cache.core.CachedSession(
         cache_name=os.path.join(tempfile.gettempdir(), 'ssr_utils_cache'),
         backend=cache_backend,
         expire_after=cache_expire_after,
-    ).get(url)
+    )
+
+    request_session.headers.update(
+        {
+            'User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                          'AppleWebKit/537.36 (KHTML, like Gecko) '
+                          'Chrome/71.0.3578.80 Safari/537.36'
+        }
+    )
+
+    print(request_session)
+
+    r = request_session.get(url)
+
+    print(r)
+
 
     # success
     if r.status_code == 200:
