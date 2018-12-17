@@ -40,9 +40,9 @@ class SSR:
         self._local_port = None
         self._path_to_config = None
 
-        self._ip = None
-        self._country = None
-        self._country_code = None
+        self._exit_ip = None
+        self._exit_country = None
+        self._exit_country_code = None
 
         self._cmd = None
         pass
@@ -67,9 +67,9 @@ class SSR:
         self._local_port = None
         self._path_to_config = None
 
-        self._ip = None
-        self._country = None
-        self._country_code = None
+        self._exit_ip = None
+        self._exit_country = None
+        self._exit_country_code = None
 
     @property
     def server(self):
@@ -124,7 +124,7 @@ class SSR:
         if self._server_ip:
             return self._server_ip
 
-        # ip
+        # exit_ip
         if common_patterns.is_ip_address(self.server):
             self._server_ip = self.server
             return self._server_ip
@@ -132,7 +132,7 @@ class SSR:
         # domain
         self._server_domain = self.server
 
-        # domain 2 ip
+        # domain 2 exit_ip
         self._server_ip = socket.gethostbyname(self._server_domain)
         return self._server_ip
 
@@ -174,16 +174,16 @@ class SSR:
         self._path_to_config = value
 
     @property
-    def ip(self):
-        return self._ip
+    def exit_ip(self):
+        return self._exit_ip
 
     @property
-    def country(self):
-        return self._country
+    def exit_country(self):
+        return self._exit_country
 
     @property
-    def country_code(self):
-        return self._country_code
+    def exit_country_code(self):
+        return self._exit_country_code
 
     @property
     def invalid_attributes(self):
@@ -544,9 +544,9 @@ class SSR:
             xp.success('Done.')
 
         if my_ip:
-            self._ip = my_ip['ip']
-            self._country = my_ip['country']
-            self._country_code = my_ip['cc']
+            self._exit_ip = my_ip['ip']
+            self._exit_country = my_ip['country']
+            self._exit_country_code = my_ip['cc']
             return True
 
         return False
