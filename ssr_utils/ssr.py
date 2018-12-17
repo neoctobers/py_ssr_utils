@@ -4,6 +4,8 @@ import sys
 import time
 import socket
 import requests
+import requests_cache
+import list_ext
 import subprocess
 import dotenv
 import tempfile
@@ -12,6 +14,9 @@ import xprint as xp
 import xbase64
 import urllib.parse
 from .errors import SystemNotSupportedException
+
+# Load .env
+dotenv.load_dotenv()
 
 
 class SSR:
@@ -169,17 +174,14 @@ class SSR:
         self._path_to_config = value
 
     @property
-    def _requests_proxies(self):
-        return {
-            'http': 'socks5://{local_address}:{local_port}'.format(
-                local_address=self.local_address,
-                local_port=self.local_port,
-            ),
-            'https': 'socks5://{local_address}:{local_port}'.format(
-                local_address=self.local_address,
-                local_port=self.local_port,
-            ),
-        }
+    def _local_proxies(self):
+        proxy = os.getenv('SOCKS5_PROXY', None)
+        if proxy:
+            return {
+                'http': 'socks5://{proxy}'.format(proxy=proxy),
+                'https': 'socks5://{proxy}'.format(proxy=proxy),
+            }
+        return None
 
     @property
     def ip(self):
@@ -464,7 +466,6 @@ class SSR:
             raise SystemNotSupportedException('Cannot use property `is_available` in windows.')
 
         # READY
-        dotenv.load_dotenv()
         xp.job('CHECK AVAILABLE')
 
         self._path_to_config = os.path.join(tempfile.gettempdir(), 'ssr_utils_{time}.json'.format(
@@ -519,9 +520,21 @@ class SSR:
         my_ip = None
         try:
             xp.about_t('Try to request for the IP address')
+
+            # SSR socks5 proxy
+            proxy = 'socks5://{local_address}:{local_port}'.format(
+                local_address=self.local_address,
+                local_port=self.local_port,
+            )
+
+            proxies = {
+                'http': proxy,
+                'https': proxy,
+            }
+
             my_ip = requests.get(
                 url='https://api.myip.com/',
-                proxies=self._requests_proxies,
+                proxies=proxies,
                 timeout=15,
             ).json()
             xp.success(my_ip['ip'])
@@ -559,27 +572,23 @@ def get_ssr_urls_by_subscribe(url: str,
                               cache_backend='sqlite',
                               cache_expire_after=300,
                               ):
-    import os
-    import tempfile
-    import requests_cache
-    import list_ext
-
     request_session = requests_cache.core.CachedSession(
         cache_name=os.path.join(tempfile.gettempdir(), 'ssr_utils_cache'),
         backend=cache_backend,
         expire_after=cache_expire_after,
     )
-    request_session.headers.update(
-        {
-            'User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                          'AppleWebKit/537.36 (KHTML, like Gecko) '
-                          'Chrome/71.0.3578.80 Safari/537.36'
-        }
-    )
 
+    # local proxies
+    proxies = None
+    proxy = os.getenv('SOCKS5_PROXY', None)
+    if proxy:
+        proxies = {
+            'http': 'socks5://{proxy}'.format(proxy=proxy),
+            'https': 'socks5://{proxy}'.format(proxy=proxy),
+        }
 
     # get
-    r = request_session.get(url)
+    r = request_session.get(url, proxies=proxies)
     if r.status_code == 200:
         return list_ext.remove_and_unique(xbase64.decode(r.text).split('\n'))
 

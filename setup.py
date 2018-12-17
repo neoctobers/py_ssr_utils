@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="ssr-utils",
-    version="3.3.1",
+    version="4.0.0",
     author="@neoctobers",
     author_email="neoctobers@gmail.com",
     description="Shadowsocks(R) utils.",
