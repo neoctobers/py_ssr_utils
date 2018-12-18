@@ -598,6 +598,13 @@ def get_ssr_urls_by_subscribe(url: str,
     # get resp
     resp = request_session.get(url, proxies=proxies)
     if resp.status_code == 200:
-        return list_ext.remove_and_unique(xbase64.decode(resp.text).split('\n'))
+        return get_urls_by_text(resp.text)
 
+    return list()
+
+
+def get_urls_by_text(text_base64: str):
+    text = xbase64.decode(text_base64)
+    if isinstance(text, str):
+        return list_ext.remove_and_unique(text.split('\n'))
     return list()
