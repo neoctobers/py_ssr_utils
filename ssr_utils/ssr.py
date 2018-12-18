@@ -542,6 +542,7 @@ class SSR:
             xp.about_t('Kill SSR sub progress', 'PID {pid}'.format(pid=gpid))
             os.killpg(gpid, 9)
             xp.success('Done.')
+            print()
 
         if my_ip:
             self._exit_ip = my_ip['ip']
