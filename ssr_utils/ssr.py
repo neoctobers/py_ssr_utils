@@ -560,10 +560,10 @@ class SSR:
         xp.success('Done.')
 
 
-def get_ssr_urls_by_subscribe(url: str,
-                              cache_backend='sqlite',
-                              cache_expire_after=300,
-                              ):
+def get_urls_by_subscribe(url: str,
+                          cache_backend='sqlite',
+                          cache_expire_after=300,
+                          ):
     # request session
     request_session = requests_cache.core.CachedSession(
         cache_name=os.path.join(tempfile.gettempdir(), 'ssr_utils_cache'),
