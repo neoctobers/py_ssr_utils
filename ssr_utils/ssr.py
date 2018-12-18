@@ -45,6 +45,7 @@ class SSR:
         self._exit_country_code = None
 
         self._cmd = None
+        self._sub_progress = None
         pass
 
     def __reset_attributes(self):
@@ -472,7 +473,7 @@ class SSR:
         # By server_ip
         self.generate_config_file(by_server_ip=True)
 
-        if self.__check_available_in_sub_progress(hint='by IP'):
+        if self.__check_available(hint='by IP'):
             self._server = self._server_ip
             self.__delete_config_file()
             print()
@@ -481,23 +482,27 @@ class SSR:
         # By server/domain
         if self.server_ip != self.server:
             self.generate_config_file()
-            is_available = self.__check_available_in_sub_progress(hint='by Server/Domain')
+            is_available = self.__check_available(hint='by Server/Domain')
             self.__delete_config_file()
             print()
             return is_available
 
         return False
 
-    def __check_available_in_sub_progress(self, hint: str):
+    def __check_available(self, hint: str):
         xp.about_t('Start a sub progress of SSR', hint)
-        sub_progress_of_ssr = subprocess.Popen(
+
+        # sub progress
+        self._sub_progress = subprocess.Popen(
             self._cmd.split(),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             preexec_fn=os.setsid,
         )
-        gpid = os.getpgid(sub_progress_of_ssr.pid)
-        xp.wr(xp.Fore.LIGHTYELLOW_EX + '(G)PID {pid} '.format(pid=gpid))
+
+        # Group PID
+        gpid = os.getpgid(self._sub_progress.pid)
+        xp.wr(xp.Fore.LIGHTYELLOW_EX + '(G)PID {} '.format(gpid))
 
         # wait, during the progress launching.
         for i in range(0, 5):
@@ -526,15 +531,10 @@ class SSR:
                 timeout=15,
             ).json()
 
-            xp.success(my_ip['ip'])
-
-        except ConnectionError:
-            xp.fx()
-            xp.error('A proxy error occurred.')
-            xp.error('A proxy error occurred.')
-            xp.error('A proxy error occurred.')
+            xp.success('{} {}'.format(my_ip['ip'], my_ip['cc']))
 
         except Exception as e:
+            # ConnectionError?
             xp.fx()
             xp.error(e)
 
@@ -550,6 +550,9 @@ class SSR:
             return True
 
         return False
+
+    def __request_for_exit_ip(self):
+        return
 
     def __delete_config_file(self):
         xp.about_t('Deleting', self.path_to_config, 'config file')
