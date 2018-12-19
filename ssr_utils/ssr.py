@@ -54,12 +54,12 @@ class SSR:
         self._method = ''
         self._password = ''
         self._protocol = 'origin'
-        self._proto_param = ''
+        self._proto_param = None
         self._obfs = 'plain'
-        self._obfs_param = ''
+        self._obfs_param = None
 
-        self._remarks = ''
-        self._group = ''
+        self._remarks = None
+        self._group = None
 
         self._server_ip = None
         self._server_domain = None
@@ -94,7 +94,7 @@ class SSR:
 
     @property
     def proto_param(self):
-        return self._proto_param
+        return self._proto_param or ''
 
     @property
     def obfs(self):
@@ -102,11 +102,11 @@ class SSR:
 
     @property
     def obfs_param(self):
-        return self._obfs_param
+        return self._obfs_param or ''
 
     @property
     def remarks(self):
-        return self._remarks
+        return self._remarks or ''
 
     @remarks.setter
     def remarks(self, value: str):
@@ -114,7 +114,7 @@ class SSR:
 
     @property
     def group(self):
-        return self._group
+        return self._group or ''
 
     @group.setter
     def group(self, value: str):
@@ -125,7 +125,7 @@ class SSR:
         if self._server_ip:
             return self._server_ip
 
-        # exit_ip
+        # ip == server?
         if common_patterns.is_ip_address(self.server):
             self._server_ip = self.server
             return self._server_ip
@@ -168,7 +168,7 @@ class SSR:
 
     @property
     def path_to_config(self):
-        return self._path_to_config or 'ssr-config.json'
+        return self._path_to_config or 'shadowsocksr.json'
 
     @path_to_config.setter
     def path_to_config(self, value: str):
@@ -289,12 +289,12 @@ class SSR:
         suffix_list = []
         if self._proto_param:
             suffix_list.append('protoparam={proto_param}'.format(
-                proto_param=xbase64.encode(self._proto_param, urlsafe=True),
+                proto_param=xbase64.encode(self.proto_param, urlsafe=True),
             ))
 
         if self._obfs_param:
             suffix_list.append('obfsparam={obfs_param}'.format(
-                obfs_param=xbase64.encode(self._obfs_param, urlsafe=True),
+                obfs_param=xbase64.encode(self.obfs_param, urlsafe=True),
             ))
 
         suffix_list.append('remarks={remarks}'.format(
@@ -384,14 +384,14 @@ class SSR:
                '       obfs: {obfs}\n' \
                ' obfs_param: {obfs_param}\n' \
                '    remarks: {remarks}\n' \
-               '      group: {group}'.format(server=self._server,
-                                             port=self._port,
-                                             method=self._method,
-                                             password=self._password,
-                                             protocol=self._protocol,
-                                             proto_param=self._proto_param,
-                                             obfs=self._obfs,
-                                             obfs_param=self._obfs_param,
+               '      group: {group}'.format(server=self.server,
+                                             port=self.port,
+                                             method=self.method,
+                                             password=self.password,
+                                             protocol=self.protocol,
+                                             proto_param=self.proto_param,
+                                             obfs=self.obfs,
+                                             obfs_param=self.obfs_param,
                                              remarks=self.remarks,
                                              group=self.group,
                                              )
@@ -423,13 +423,13 @@ class SSR:
                        '    "obfs_param": "{obfs_param}",\n\n' \
                        '    "local_address": "{local_address}",\n' \
                        '    "local_port": {local_port}' \
-                       ''.format(server_port=self._port,
-                                 method=self._method,
-                                 password=self._password,
-                                 protocol=self._protocol,
-                                 protocol_param=self._proto_param,
-                                 obfs=self._obfs,
-                                 obfs_param=self._obfs_param,
+                       ''.format(server_port=self.port,
+                                 method=self.method,
+                                 password=self.password,
+                                 protocol=self.protocol,
+                                 protocol_param=self.proto_param,
+                                 obfs=self.obfs,
+                                 obfs_param=self.obfs_param,
                                  local_address=self.local_address,
                                  local_port=self.local_port,
                                  )
