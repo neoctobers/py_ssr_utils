@@ -432,15 +432,15 @@ class SSR:
         config_json_string += '\n}'
         return config_json_string
 
-    def write_config_file(self, path_to_config_file=None, by_ip: bool = False):
+    def write_config_file(self, path_to_file=None, by_ip: bool = False):
         # check attributes
         if self.invalid_attributes:
             return None
 
-        if path_to_config_file:
-            self._path_to_config_file = path_to_config_file
+        if path_to_file:
+            self._path_to_config_file = path_to_file
 
-        xp.about_t('Generating', self.path_to_config_file, 'config file')
+        xp.about_t('Generating', self.path_to_config_file, 'for shadowsocksr')
         with open(self.path_to_config_file, 'wb') as f:
             f.write(self.get_config_json_string(by_ip=by_ip).encode('utf-8'))
             xp.success('Done.')
