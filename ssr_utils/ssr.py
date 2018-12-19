@@ -198,7 +198,7 @@ class SSR:
         ]
 
         for key in keys:
-            if not getattr(self, '_{}'.format(key)):
+            if not getattr(self, key):
                 xp.error('Attribute `{}` is invalid.'.format(key))
                 return True
         return False
@@ -212,9 +212,9 @@ class SSR:
             'method': '',
             'password': '',
             'protocol': 'origin',
-            'proto_param': '',
+            'proto_param': None,
             'obfs': 'plain',
-            'obfs_param': '',
+            'obfs_param': None,
 
             'remarks': None,
             'group': None,
