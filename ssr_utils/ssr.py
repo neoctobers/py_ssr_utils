@@ -38,7 +38,7 @@ class SSR:
 
         self._local_address = None
         self._local_port = None
-        self._path_to_config = None
+        self._path_to_config_file = None
 
         self._exit_ip = None
         self._exit_country = None
@@ -66,7 +66,7 @@ class SSR:
 
         self._local_address = None
         self._local_port = None
-        self._path_to_config = None
+        self._path_to_config_file = None
 
         self._exit_ip = None
         self._exit_country = None
@@ -167,12 +167,8 @@ class SSR:
         self._local_port = value
 
     @property
-    def path_to_config(self):
-        return self._path_to_config or 'shadowsocksr.json'
-
-    @path_to_config.setter
-    def path_to_config(self, value: str):
-        self._path_to_config = value
+    def path_to_config_file(self):
+        return self._path_to_config_file or os.path.join(os.getcwd(), 'shadowsocksr-config.json')
 
     @property
     def exit_ip(self):
@@ -397,58 +393,63 @@ class SSR:
                                              )
 
     @property
-    def json_string(self):
-        return self.get_json_string()
+    def config_json_string(self):
+        return self.get_config_json_string()
 
-    def get_json_string(self, by_server_ip: bool = False):
+    def get_config_json_string(self, by_ip: bool = False):
         # check attributes
         if self.invalid_attributes:
             return None
 
-        json_string = '{\n'
+        config_json_string = '{\n'
 
-        if by_server_ip:
-            json_string += '    "server": "{server}",\n'.format(server=self.server_ip)
+        # by: ip / server
+        if by_ip:
+            config_json_string += '    "server": "{server}",\n'.format(server=self.server_ip)
         else:
-            # by original server
-            json_string += '    "server": "{server}",\n'.format(server=self.server)
+            config_json_string += '    "server": "{server}",\n'.format(server=self.server)
 
         # other props
-        json_string += '    "server_port": {server_port},\n' \
-                       '    "method": "{method}",\n' \
-                       '    "password": "{password}",\n' \
-                       '    "protocol": "{protocol}",\n' \
-                       '    "protocol_param": "{protocol_param}",\n' \
-                       '    "obfs": "{obfs}",\n' \
-                       '    "obfs_param": "{obfs_param}",\n\n' \
-                       '    "local_address": "{local_address}",\n' \
-                       '    "local_port": {local_port}' \
-                       ''.format(server_port=self.port,
-                                 method=self.method,
-                                 password=self.password,
-                                 protocol=self.protocol,
-                                 protocol_param=self.proto_param,
-                                 obfs=self.obfs,
-                                 obfs_param=self.obfs_param,
-                                 local_address=self.local_address,
-                                 local_port=self.local_port,
-                                 )
-        json_string += '\n}'
-        return json_string
+        config_json_string += '    "server_port": {server_port},\n' \
+                              '    "method": "{method}",\n' \
+                              '    "password": "{password}",\n' \
+                              '    "protocol": "{protocol}",\n' \
+                              '    "protocol_param": "{protocol_param}",\n' \
+                              '    "obfs": "{obfs}",\n' \
+                              '    "obfs_param": "{obfs_param}",\n\n' \
+                              '    "local_address": "{local_address}",\n' \
+                              '    "local_port": {local_port}' \
+                              ''.format(server_port=self.port,
+                                        method=self.method,
+                                        password=self.password,
+                                        protocol=self.protocol,
+                                        protocol_param=self.proto_param,
+                                        obfs=self.obfs,
+                                        obfs_param=self.obfs_param,
+                                        local_address=self.local_address,
+                                        local_port=self.local_port,
+                                        )
+        config_json_string += '\n}'
+        return config_json_string
 
-    def generate_config_file(self, by_server_ip: bool = False):
+    def write_config_file(self, path_to_config_file=None, by_ip: bool = False):
         # check attributes
         if self.invalid_attributes:
             return None
 
-        xp.about_t('Generating', self.path_to_config, 'config file')
-        with open(self.path_to_config, 'wb') as f:
-            f.write(self.get_json_string(by_server_ip=by_server_ip).encode('utf-8'))
+        if path_to_config_file:
+            self._path_to_config_file = path_to_config_file
+
+        xp.about_t('Generating', self.path_to_config_file, 'config file')
+        with open(self.path_to_config_file, 'wb') as f:
+            f.write(self.get_config_json_string(by_ip=by_ip).encode('utf-8'))
             xp.success('Done.')
 
     @property
     def is_available(self):
-        # check attributes
+        return self.get_available()
+
+    def get_available(self):
         if self.invalid_attributes:
             return None
 
@@ -459,7 +460,7 @@ class SSR:
         # READY
         xp.job('CHECK AVAILABLE')
 
-        self._path_to_config = os.path.join(tempfile.gettempdir(), 'ssr_utils_{time}.json'.format(
+        self._path_to_config_file = os.path.join(tempfile.gettempdir(), 'ssr_utils_{time}.json'.format(
             time=str(time.time()).replace('.', '').ljust(17, '0'),
         ))
 
@@ -467,11 +468,11 @@ class SSR:
         self._cmd = '{python} {python_ssr} -c {path_to_config}'.format(
             python=os.getenv('PYTHON', '/usr/bin/python3'),
             python_ssr=os.getenv('PYTHON_SSR', '/repo/shadowsocksr/shadowsocks/local.py'),
-            path_to_config=self.path_to_config,
+            path_to_config=self.path_to_config_file,
         )
 
         # By server_ip
-        self.generate_config_file(by_server_ip=True)
+        self.write_config_file(by_ip=True)
 
         if self.__check_available(hint='by IP'):
             self._server = self._server_ip
@@ -481,7 +482,7 @@ class SSR:
 
         # By server/domain
         if self.server_ip != self.server:
-            self.generate_config_file()
+            self.write_config_file()
             is_available = self.__check_available(hint='by Server/Domain')
             self.__delete_config_file()
             print()
@@ -555,8 +556,8 @@ class SSR:
         return
 
     def __delete_config_file(self):
-        xp.about_t('Deleting', self.path_to_config, 'config file')
-        os.remove(self.path_to_config)
+        xp.about_t('Deleting', self.path_to_config_file, 'config file')
+        os.remove(self.path_to_config_file)
         xp.success('Done.')
 
 
