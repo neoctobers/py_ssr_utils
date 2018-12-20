@@ -13,7 +13,8 @@ import common_patterns
 import xprint as xp
 import xbase64
 import urllib.parse
-from .errors import SystemNotSupportedException
+import proxychains_conf_generator
+from .errors import *
 
 # Load .env
 dotenv.load_dotenv()
@@ -45,6 +46,7 @@ class SSR:
         self._exit_country_code = None
 
         self._cmd = None
+        self._cmd_prefix = None
         self._sub_progress = None
         pass
 
@@ -181,6 +183,52 @@ class SSR:
     @property
     def exit_country_code(self):
         return self._exit_country_code
+
+    @property
+    def pc4_conf_file(self):
+        local_proxy_list_file = 'proxy.txt'
+        if os.path.exists(local_proxy_list_file):
+            path_to_pc4_conf_file = os.path.join(tempfile.gettempdir(), 'ssr_utils_pc4.conf')
+
+            if os.path.exists(path_to_pc4_conf_file) and \
+                    time.time() - os.stat(path_to_pc4_conf_file).st_mtime \
+                    < int(os.getenv('PORXYCHAINS4_CACHE_TIME', 1800)):
+                return path_to_pc4_conf_file
+
+            for line in open(local_proxy_list_file).readlines():
+                line = line.strip('\n')
+                # proxy_expression
+                proxy = list_ext.remove(line.split(' '))
+                proxy_expression = '{protocol}://'.format(protocol=proxy[0])
+                if 5 <= len(proxy):
+                    proxy_expression += '{username}:{password}@'.format(username=proxy[3], password=proxy[4])
+                proxy_expression += '{host}:{port}'.format(host=proxy[1], port=proxy[2])
+
+                # pc4_conf_file
+                requests_proxies = {
+                    'http': proxy_expression,
+                    'https': proxy_expression,
+                }
+
+                # try to get IP
+                try:
+                    r = requests.get(url='https://api.myip.com', proxies=requests_proxies)
+                    if 200 == r.status_code:
+                        # pc4
+                        g = proxychains_conf_generator.Generator(
+                            proxy=line,
+                            quiet_mode=True,
+                        )
+                        return g.write(path_to_conf=path_to_pc4_conf_file)
+
+                except Exception as e:
+                    xp.error(e)
+                    pass
+
+            xp.error('No available proxy in "{}". Remove it if do not need a proxy.'.format(local_proxy_list_file))
+            xp.ex()
+
+        return None
 
     @property
     def invalid_attributes(self):
@@ -401,38 +449,27 @@ class SSR:
         if self.invalid_attributes:
             return None
 
-        config_json_string = '{\n'
+        configs = list()
 
         # by: ip / server
         if by_ip:
-            config_json_string += '    "server": "{server}",\n'.format(server=self.server_ip)
+            configs.append('"server": "{}",'.format(self.server_ip))
         else:
-            config_json_string += '    "server": "{server}",\n'.format(server=self.server)
+            configs.append('"server": "{}",'.format(self.server))
 
-        # other props
-        config_json_string += '    "server_port": {server_port},\n' \
-                              '    "method": "{method}",\n' \
-                              '    "password": "{password}",\n' \
-                              '    "protocol": "{protocol}",\n' \
-                              '    "protocol_param": "{protocol_param}",\n' \
-                              '    "obfs": "{obfs}",\n' \
-                              '    "obfs_param": "{obfs_param}",\n\n' \
-                              '    "local_address": "{local_address}",\n' \
-                              '    "local_port": {local_port}' \
-                              ''.format(server_port=self.port,
-                                        method=self.method,
-                                        password=self.password,
-                                        protocol=self.protocol,
-                                        protocol_param=self.proto_param,
-                                        obfs=self.obfs,
-                                        obfs_param=self.obfs_param,
-                                        local_address=self.local_address,
-                                        local_port=self.local_port,
-                                        )
-        config_json_string += '\n}'
-        return config_json_string
+        configs.append('"server_port": {},'.format(self.port))
+        configs.append('"method": "{}",'.format(self.method))
+        configs.append('"password": "{}",'.format(self.password))
+        configs.append('"protocol": "{}",'.format(self.protocol))
+        configs.append('"protocol_param": "{}",'.format(self.proto_param))
+        configs.append('"obfs": "{}",'.format(self.obfs))
+        configs.append('"obfs_param": "{}",'.format(self.obfs_param))
+        configs.append('"local_address": "{}",'.format(self.local_address))
+        configs.append('"local_port": {}'.format(self.local_port))
 
-    def write_config_file(self, path_to_file=None, by_ip: bool = False):
+        return '{\n' + '\n'.join(configs) + '\n}'
+
+    def write_config_file(self, path_to_file=None, by_ip: bool = False, plain_to_console: bool = False):
         # check attributes
         if self.invalid_attributes:
             return None
@@ -442,8 +479,11 @@ class SSR:
 
         xp.about_t('Generating', self.path_to_config_file, 'for shadowsocksr')
         with open(self.path_to_config_file, 'wb') as f:
-            f.write(self.get_config_json_string(by_ip=by_ip).encode('utf-8'))
-            xp.success('Done.')
+            json_string = self.get_config_json_string(by_ip=by_ip)
+            f.write(json_string.encode('utf-8'))
+            xp.success()
+            if plain_to_console:
+                xp.plain_text(json_string)
 
     @property
     def is_available(self):
@@ -465,18 +505,31 @@ class SSR:
         ))
 
         # cmd
-        self._cmd = '{python} {python_ssr} -c {path_to_config}'.format(
+        self._cmd = ''
+
+        # pc4
+        pc4_conf_file = self.pc4_conf_file
+        if pc4_conf_file:
+            self._cmd = '{path_to_pc4} -q -f {pc4_conf_file} '.format(
+                path_to_pc4=os.getenv('PATH_TO_PORXYCHAINS4', '/usr/local/bin/proxychains4'),
+                pc4_conf_file=pc4_conf_file,
+            )
+
+        # Python SSR
+        self._cmd += '{python} {python_ssr} -c {path_to_config}'.format(
             python=os.getenv('PYTHON', '/usr/bin/python3'),
             python_ssr=os.getenv('PYTHON_SSR', '/repo/shadowsocksr/shadowsocks/local.py'),
             path_to_config=self.path_to_config_file,
         )
+
+        print(self._cmd)
 
         # By server_ip
         self.write_config_file(by_ip=True)
 
         if self.__check_available(hint='by IP'):
             self._server = self._server_ip
-            self.__delete_config_file()
+            self.__check_finished()
             print()
             return True
 
@@ -484,7 +537,7 @@ class SSR:
         if self.server_ip != self.server:
             self.write_config_file()
             is_available = self.__check_available(hint='by Server/Domain')
-            self.__delete_config_file()
+            self.__check_finished()
             print()
             return is_available
 
@@ -552,13 +605,10 @@ class SSR:
 
         return False
 
-    def __request_for_exit_ip(self):
-        return
-
-    def __delete_config_file(self):
+    def __check_finished(self):
         xp.about_t('Deleting', self.path_to_config_file, 'config file')
         os.remove(self.path_to_config_file)
-        xp.success('Done.')
+        xp.success()
 
 
 def get_urls_by_subscribe(url: str,

@@ -2,6 +2,7 @@
 t.py
 *test.py
 config.json
+proxy.txt
 
 # IDE
 .idea
