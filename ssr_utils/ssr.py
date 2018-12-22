@@ -188,6 +188,7 @@ class SSR:
     def pc4_conf_file(self):
         local_proxy_list_file = 'proxy.txt'
         if os.path.exists(local_proxy_list_file):
+            xp.job('Make a local proxy chain from "proxy.txt"')
             path_to_pc4_conf_file = os.path.join(tempfile.gettempdir(), 'ssr_utils_pc4.conf')
 
             if os.path.exists(path_to_pc4_conf_file) and \
@@ -504,16 +505,15 @@ class SSR:
             time=str(time.time()).replace('.', '').ljust(17, '0'),
         ))
 
-        # cmd
-        self._cmd = ''
-
-        # pc4
+        # cmd with pc4
         pc4_conf_file = self.pc4_conf_file
         if pc4_conf_file:
             self._cmd = '{path_to_pc4} -q -f {pc4_conf_file} '.format(
                 path_to_pc4=os.getenv('PATH_TO_PORXYCHAINS4', '/usr/local/bin/proxychains4'),
                 pc4_conf_file=pc4_conf_file,
             )
+        else:
+            self._cmd = ''
 
         # Python SSR
         self._cmd += '{python} {python_ssr} -c {path_to_config}'.format(
@@ -521,8 +521,6 @@ class SSR:
             python_ssr=os.getenv('PYTHON_SSR', '/repo/shadowsocksr/shadowsocks/local.py'),
             path_to_config=self.path_to_config_file,
         )
-
-        print(self._cmd)
 
         # By server_ip
         self.write_config_file(by_ip=True)
