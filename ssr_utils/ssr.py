@@ -188,7 +188,6 @@ class SSR:
     def pc4_conf_file(self):
         local_proxy_list_file = 'proxy.txt'
         if os.path.exists(local_proxy_list_file):
-            xp.job('Make a local proxy chain from "proxy.txt"')
             path_to_pc4_conf_file = os.path.join(tempfile.gettempdir(), 'ssr_utils_pc4.conf')
 
             if os.path.exists(path_to_pc4_conf_file) and \
@@ -196,6 +195,7 @@ class SSR:
                     < int(os.getenv('PORXYCHAINS4_CACHE_TIME', 1800)):
                 return path_to_pc4_conf_file
 
+            xp.job('Make a local proxy chain from "proxy.txt"')
             for line in open(local_proxy_list_file).readlines():
                 line = line.strip('\n')
                 # proxy_expression
