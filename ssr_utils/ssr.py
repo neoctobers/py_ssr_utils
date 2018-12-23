@@ -7,7 +7,7 @@ import requests
 import requests_cache
 import list_ext
 import subprocess
-import dotenv
+import profig
 import tempfile
 import common_patterns
 import xprint as xp
@@ -16,12 +16,18 @@ import urllib.parse
 import proxychains_conf_generator
 from .errors import *
 
-# Load .env
-dotenv.load_dotenv()
-
 
 class SSR:
     def __init__(self):
+        self._cfg = profig.Config('config.ini')
+        self._cfg.init('path.python', '/usr/bin/python3')
+        self._cfg.init('path.python_ssr', '/data/repo/shadowsocksr/shadowsocks/local.py')
+        self._cfg.init('path.proxychains4', '/usr/local/bin/porxychains4')
+        self._cfg.init('proxy.http', '')
+        self._cfg.init('proxy.https', '')
+        self._cfg.init('ssr_utils.proxychains4_cache_time', 300)
+        self._cfg.sync()
+
         self._server = None
         self._port = None
         self._method = None
@@ -192,7 +198,7 @@ class SSR:
 
             if os.path.exists(path_to_pc4_conf_file) and \
                     time.time() - os.stat(path_to_pc4_conf_file).st_mtime \
-                    < int(os.getenv('PORXYCHAINS4_CACHE_TIME', 1800)):
+                    < self._cfg['ssr_utils.proxychains4_cache_time']:
                 return path_to_pc4_conf_file
 
             xp.job('Make a local proxy chain from "proxy.txt"')
@@ -509,7 +515,7 @@ class SSR:
         pc4_conf_file = self.pc4_conf_file
         if pc4_conf_file:
             self._cmd = '{path_to_pc4} -q -f {pc4_conf_file} '.format(
-                path_to_pc4=os.getenv('PATH_TO_PORXYCHAINS4', '/usr/local/bin/proxychains4'),
+                path_to_pc4=self._cfg['path.proxychains4'],
                 pc4_conf_file=pc4_conf_file,
             )
         else:
@@ -517,8 +523,8 @@ class SSR:
 
         # Python SSR
         self._cmd += '{python} {python_ssr} -c {path_to_config}'.format(
-            python=os.getenv('PYTHON', '/usr/bin/python3'),
-            python_ssr=os.getenv('PYTHON_SSR', '/repo/shadowsocksr/shadowsocks/local.py'),
+            python=self._cfg['path.python'],
+            python_ssr=self._cfg['path.python_ssr'],
             path_to_config=self.path_to_config_file,
         )
 
@@ -612,6 +618,7 @@ class SSR:
 def get_urls_by_subscribe(url: str,
                           cache_backend='sqlite',
                           cache_expire_after=300,
+                          request_proxies=None,
                           ):
     # request session
     request_session = requests_cache.core.CachedSession(
@@ -630,25 +637,8 @@ def get_urls_by_subscribe(url: str,
         }
     )
 
-    # local proxies
-    proxies = dict()
-
-    # http proxy
-    http_proxy = os.getenv('HTTP_PROXY', None)
-    if http_proxy:
-        proxies['http'] = http_proxy
-
-    # https proxy
-    https_proxy = os.getenv('HTTPS_PROXY', None)
-    if https_proxy:
-        proxies['https'] = https_proxy
-
-    # {} => None
-    if not proxies:
-        proxies = None
-
     # get resp
-    resp = request_session.get(url, proxies=proxies)
+    resp = request_session.get(url, proxies=request_proxies)
     if resp.status_code == 200:
         return get_urls_by_base64(resp.text)
 

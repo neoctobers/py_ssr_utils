@@ -4,6 +4,9 @@ t.py
 config.json
 proxy.txt
 
+# config
+config.ini
+
 # IDE
 .idea
 .vscode
