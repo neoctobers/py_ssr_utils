@@ -23,8 +23,6 @@ class SSR:
         self._cfg.init('path.python', '/usr/bin/python3')
         self._cfg.init('path.python_ssr', '/data/repo/shadowsocksr/shadowsocks/local.py')
         self._cfg.init('path.proxychains4', '/usr/local/bin/porxychains4')
-        self._cfg.init('proxy.http', '')
-        self._cfg.init('proxy.https', '')
         self._cfg.init('ssr_utils.proxychains4_cache_time', 300)
         self._cfg.sync()
 
