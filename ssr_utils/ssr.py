@@ -18,12 +18,13 @@ from .errors import *
 
 
 class SSR:
-    def __init__(self):
-        self._cfg = profig.Config('config.ini')
+    def __init__(self, path_to_config='config.ini'):
+        self._cfg = profig.Config(path_to_config)
         self._cfg.init('path.python', '/usr/bin/python3')
         self._cfg.init('path.python_ssr', '/data/repo/shadowsocksr/shadowsocks/local.py')
         self._cfg.init('path.proxychains4', '/usr/local/bin/porxychains4')
         self._cfg.init('ssr_utils.proxychains4_cache_time', 300)
+        self._cfg.init('ssr_utils.proxy_file', 'proxy.txt')
         self._cfg.sync()
 
         self._server = None
@@ -190,8 +191,7 @@ class SSR:
 
     @property
     def pc4_conf_file(self):
-        local_proxy_list_file = 'proxy.txt'
-        if os.path.exists(local_proxy_list_file):
+        if os.path.exists(self._cfg['ssr_utils.proxy_file']):
             path_to_pc4_conf_file = os.path.join(tempfile.gettempdir(), 'ssr_utils_pc4.conf')
 
             if os.path.exists(path_to_pc4_conf_file) and \
@@ -200,7 +200,7 @@ class SSR:
                 return path_to_pc4_conf_file
 
             xp.job('Make a local proxy chain from "proxy.txt"')
-            for line in open(local_proxy_list_file).readlines():
+            for line in open(self._cfg['ssr_utils.proxy_file']).readlines():
                 line = line.strip('\n')
                 # proxy_expression
                 proxy = list_ext.remove(line.split(' '))
@@ -230,7 +230,9 @@ class SSR:
                     xp.error(e)
                     pass
 
-            xp.error('No available proxy in "{}". Remove it if do not need a proxy.'.format(local_proxy_list_file))
+            xp.error('No available proxy in "{}". Remove it if do not need a proxy.'.format(
+                self._cfg['ssr_utils.proxy_file'],
+            ))
             xp.ex()
 
         return None
