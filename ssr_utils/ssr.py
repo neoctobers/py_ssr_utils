@@ -25,6 +25,7 @@ class SSR:
         self._cfg.init('path.proxychains4', '/usr/local/bin/porxychains4')
         self._cfg.init('ssr_utils.proxychains4_cache_time', 300)
         self._cfg.init('ssr_utils.proxy_file', 'proxy.txt')
+        self._cfg.init('ssr_utils.local_port', 13431)
         self._cfg.sync()
 
         self._server = None
@@ -167,7 +168,7 @@ class SSR:
 
     @property
     def local_port(self):
-        return self._local_port or 13431
+        return self._local_port or self._cfg['ssr_utils.local_port']
 
     @local_port.setter
     def local_port(self, value: int):
