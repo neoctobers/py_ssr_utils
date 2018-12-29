@@ -366,10 +366,14 @@ class SSR:
 
         r = url.split('://')
 
-        if r[0] == 'ssr':
-            self.__parse_ssr(r[1])
-        elif r[0] == 'ss':
-            self.__parse_ss(r[1])
+        try:
+            if r[0] == 'ssr':
+                self.__parse_ssr(r[1])
+            elif r[0] == 'ss':
+                self.__parse_ss(r[1])
+        except Exception as e:
+            xp.error(e)
+            pass
 
     def __parse_ssr(self, ssr_base64: str):
         ssr = ssr_base64.split('#')[0]
