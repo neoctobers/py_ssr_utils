@@ -201,19 +201,17 @@ class SSR:
                 return path_to_pc4_conf_file
 
             xp.job('Make a local proxy chain from "proxy.txt"')
-            for line in open(self._cfg['ssr_utils.proxy_file']).readlines():
-                line = line.strip('\n')
-                # proxy_expression
-                proxy = list_ext.remove(line.split(' '))
-                proxy_expression = '{protocol}://'.format(protocol=proxy[0])
-                if 5 <= len(proxy):
-                    proxy_expression += '{username}:{password}@'.format(username=proxy[3], password=proxy[4])
-                proxy_expression += '{host}:{port}'.format(host=proxy[1], port=proxy[2])
+            for row in list_ext.sur(open(self._cfg['ssr_utils.proxy_file']).readlines()):
+                row = list_ext.remove(row.strip('\n').split(' '))
+                proxy = '{protocol}://'.format(protocol=row[0])
+                if 5 <= len(row):
+                    proxy += '{username}:{password}@'.format(username=row[3], password=row[4])
+                proxy += '{host}:{port}'.format(host=row[1], port=row[2])
 
                 # pc4_conf_file
                 requests_proxies = {
-                    'http': proxy_expression,
-                    'https': proxy_expression,
+                    'http': proxy,
+                    'https': proxy,
                 }
 
                 # try to get IP
@@ -222,7 +220,7 @@ class SSR:
                     if 200 == r.status_code:
                         # pc4
                         g = proxychains_conf_generator.Generator(
-                            proxy=line,
+                            proxy=row,
                             quiet_mode=True,
                         )
                         return g.write(path_to_conf=path_to_pc4_conf_file)
@@ -651,3 +649,7 @@ def get_urls_by_base64(text_base64: str):
     if isinstance(text, str):
         return list_ext.remove_and_unique(text.split('\n'))
     return list()
+
+
+def get_urls_by_string(string: str):
+    return list_ext.unique(common_patterns.findall_ssr_urls(string=string))
