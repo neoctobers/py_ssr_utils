@@ -50,8 +50,6 @@ class SSR:
         self._path_to_config_file = None
 
         self._exit_ip = None
-        self._exit_country = None
-        self._exit_country_code = None
 
         self._cmd = None
         self._cmd_prefix = None
@@ -79,8 +77,6 @@ class SSR:
         self._path_to_config_file = None
 
         self._exit_ip = None
-        self._exit_country = None
-        self._exit_country_code = None
 
     @property
     def server(self):
@@ -186,11 +182,15 @@ class SSR:
 
     @property
     def exit_country(self):
-        return self._exit_country
+        if self._exit_ip:
+            return self._exit_ip['country']
+        return None
 
     @property
     def exit_country_code(self):
-        return self._exit_country_code
+        if self._exit_ip:
+            return self._exit_ip['country_code']
+        return None
 
     @property
     def pc4_conf_file(self):
@@ -527,23 +527,24 @@ class SSR:
         # By server_ip
         self.write_config_file(by_ip=True)
 
-        if self.__check_available(hint='by IP'):
+        ip = self.__ip_query(hint='by IP')
+        if ip:
             self._server = self._server_ip
-            self.__check_finished()
+            self.__remove_ssr_conf()
             print()
-            return True
+            return ip
 
         # By server/domain
         if self.server_ip != self.server:
             self.write_config_file()
-            is_available = self.__check_available(hint='by Server/Domain')
-            self.__check_finished()
+            ip = self.__ip_query(hint='by Server/Domain')
+            self.__remove_ssr_conf()
             print()
-            return is_available
+            return ip
 
-        return False
+        return None
 
-    def __check_available(self, hint: str):
+    def __ip_query(self, hint: str):
         xp.about_t('Start a sub progress of SSR', hint)
 
         # sub progress
@@ -589,17 +590,29 @@ class SSR:
             xp.success('Done.')
 
         if ip:
-            self._exit_ip = ip['ip']
-            self._exit_country = ip['country']
-            self._exit_country_code = ip['country_code']
-            return True
+            self._exit_ip = ip
+            return ip
 
-        return False
+        return None
 
-    def __check_finished(self):
+    def __remove_ssr_conf(self):
         xp.about_t('Deleting', self.path_to_config_file, 'config file')
         os.remove(self.path_to_config_file)
         xp.success()
+
+    @staticmethod
+    def __is_port_open(port: int):
+        xp.about_t('Checking', 'local port #.{}'.format(port))
+
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.connect(('127.0.0.1', port))
+            s.shutdown(2)
+            xp.success('is open')
+            return True
+        except:
+            xp.success('is down')
+            return False
 
 
 def get_urls_by_subscribe(url: str,
