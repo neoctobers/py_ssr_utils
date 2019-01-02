@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="ssr-utils",
-    version="5.4.7",
+    version="6.0.0",
     author="@neoctobers",
     author_email="neoctobers@gmail.com",
     description="Shadowsocks(R) utils.",
@@ -21,10 +21,13 @@ setuptools.setup(
     ],
     install_requires=[
         'profig',
-        'xbase64',
-        'requests[socks]',
+        'requests-cache',
         'xprint',
-        'list_ext',
+        'ip-query',
+        'xbase64',
+        'list-ext',
+        'file-ext',
+        'proxy-ext',
         'common-patterns',
         'proxychains-conf-generator',
     ],

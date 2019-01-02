@@ -2,7 +2,7 @@
 t.py
 *test.py
 config.json
-proxy.txt
+pre_proxy.txt
 
 # config
 config.ini

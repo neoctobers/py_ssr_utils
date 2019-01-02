@@ -3,9 +3,10 @@ import os
 import sys
 import time
 import socket
-import requests
 import requests_cache
 import list_ext
+import file_ext
+import proxy_ext
 import subprocess
 import profig
 import tempfile
@@ -14,6 +15,7 @@ import xprint as xp
 import xbase64
 import urllib.parse
 import proxychains_conf_generator
+from ip_query import ip_query
 from .errors import *
 
 
@@ -22,10 +24,10 @@ class SSR:
         self._cfg = profig.Config(path_to_config)
         self._cfg.init('path.python', '/usr/bin/python3')
         self._cfg.init('path.python_ssr', '/data/repo/shadowsocksr/shadowsocks/local.py')
-        self._cfg.init('path.proxychains4', '/usr/local/bin/porxychains4')
-        self._cfg.init('ssr_utils.proxychains4_cache_time', 300)
-        self._cfg.init('ssr_utils.proxy_file', 'proxy.txt')
+        self._cfg.init('path.proxychains4', '/usr/local/bin/proxychains4')
         self._cfg.init('ssr_utils.local_port', 13431)
+        self._cfg.init('ssr_utils.path_to_pre_proxy', 'pre_proxy.txt')
+        self._cfg.init('ssr_utils.proxychains4_cache_time', 300)
         self._cfg.sync()
 
         self._server = None
@@ -192,7 +194,7 @@ class SSR:
 
     @property
     def pc4_conf_file(self):
-        if os.path.exists(self._cfg['ssr_utils.proxy_file']):
+        if os.path.exists(self._cfg['ssr_utils.path_to_pre_proxy']):
             path_to_pc4_conf_file = os.path.join(tempfile.gettempdir(), 'ssr_utils_pc4.conf')
 
             if os.path.exists(path_to_pc4_conf_file) and \
@@ -200,34 +202,24 @@ class SSR:
                     < self._cfg['ssr_utils.proxychains4_cache_time']:
                 return path_to_pc4_conf_file
 
-            xp.job('Make a local proxy chain from "proxy.txt"')
-            for row in list_ext.sur(open(self._cfg['ssr_utils.proxy_file']).readlines()):
-                row = list_ext.remove(row.strip('\n').split(' '))
-                proxy = '{protocol}://'.format(protocol=row[0])
-                if 5 <= len(row):
-                    proxy += '{username}:{password}@'.format(username=row[3], password=row[4])
-                proxy += '{host}:{port}'.format(host=row[1], port=row[2])
+            lines = file_ext.read_to_list(self._cfg['ssr_utils.path_to_pre_proxy'])
+            if lines:
+                lines = list_ext.unique(lines)
+                for line in lines:
+                    requests_proxies = proxy_ext.line2requests_proxies(line)
 
-                # pc4_conf_file
-                requests_proxies = {
-                    'http': proxy,
-                    'https': proxy,
-                }
+                    # valid, and generate pc4 conf
+                    try:
+                        if ip_query(requests_proxies=requests_proxies):
+                            g = proxychains_conf_generator.Generator(
+                                proxy=line,
+                                quiet_mode=True,
+                            )
+                            return g.write(path_to_conf=path_to_pc4_conf_file)
 
-                # try to get IP
-                try:
-                    r = requests.get(url='https://api.myip.com', proxies=requests_proxies)
-                    if 200 == r.status_code:
-                        # pc4
-                        g = proxychains_conf_generator.Generator(
-                            proxy=row,
-                            quiet_mode=True,
-                        )
-                        return g.write(path_to_conf=path_to_pc4_conf_file)
-
-                except Exception as e:
-                    xp.error(e)
-                    pass
+                    except Exception as e:
+                        xp.error(e)
+                        pass
 
             xp.error('No available proxy in "{}". Remove it if do not need a proxy.'.format(
                 self._cfg['ssr_utils.proxy_file'],
@@ -517,6 +509,7 @@ class SSR:
         # cmd with pc4
         pc4_conf_file = self.pc4_conf_file
         if pc4_conf_file:
+            xp.about_to('Use', pc4_conf_file, 'for proxychains')
             self._cmd = '{path_to_pc4} -q -f {pc4_conf_file} '.format(
                 path_to_pc4=self._cfg['path.proxychains4'],
                 pc4_conf_file=pc4_conf_file,
@@ -573,26 +566,17 @@ class SSR:
         xp.success(' Next.')
 
         # Request for IP
-        my_ip = None
+        ip = None
         try:
             xp.about_t('Try to request for the IP address')
 
-            # socks5 proxy by SSR progress
-            socks5_proxy = 'socks5://{local_address}:{local_port}'.format(
-                local_address=self.local_address,
-                local_port=self.local_port,
-            )
-
-            my_ip = requests.get(
-                url='https://api.myip.com/',
-                proxies={
-                    'http': socks5_proxy,
-                    'https': socks5_proxy,
-                },
-                timeout=15,
-            ).json()
-
-            xp.success('{} {}'.format(my_ip['ip'], my_ip['cc']))
+            ip = ip_query(requests_proxies=proxy_ext.requests_proxies(host=self.local_address,
+                                                                      port=self.local_port,
+                                                                      ))
+            if ip:
+                xp.success('{} {}'.format(ip['ip'], ip['country']))
+            else:
+                xp.fx()
 
         except Exception as e:
             # ConnectionError?
@@ -604,10 +588,10 @@ class SSR:
             os.killpg(gpid, 9)
             xp.success('Done.')
 
-        if my_ip:
-            self._exit_ip = my_ip['ip']
-            self._exit_country = my_ip['country']
-            self._exit_country_code = my_ip['cc']
+        if ip:
+            self._exit_ip = ip['ip']
+            self._exit_country = ip['country']
+            self._exit_country_code = ip['country_code']
             return True
 
         return False
