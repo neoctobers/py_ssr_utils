@@ -16,11 +16,12 @@ import xbase64
 import urllib.parse
 import proxychains_conf_generator
 from ip_query import ip_query
+from ip_utils import IPu
 from .errors import *
 
 
 class SSR:
-    def __init__(self, path_to_config='config.ini'):
+    def __init__(self, path_to_config: str = 'config.ini'):
         self._cfg = profig.Config(path_to_config)
         self._cfg.init('path.python', '/usr/bin/python3')
         self._cfg.init('path.python_ssr', '/data/repo/shadowsocksr/shadowsocks/local.py')
@@ -29,6 +30,8 @@ class SSR:
         self._cfg.init('ssr_utils.path_to_pre_proxy', 'pre_proxy.txt')
         self._cfg.init('ssr_utils.proxychains4_cache_time', 300)
         self._cfg.sync()
+
+        self._path_to_config = path_to_config
 
         self._server = None
         self._port = None
@@ -173,7 +176,7 @@ class SSR:
         self._local_port = value
 
     @property
-    def path_to_config_file(self):
+    def path_to_ssr_conf(self):
         return self._path_to_config_file or os.path.join(os.getcwd(), 'shadowsocksr-config.json')
 
     @property
@@ -210,7 +213,8 @@ class SSR:
 
                     # valid, and generate pc4 conf
                     try:
-                        if ip_query(requests_proxies=requests_proxies):
+                        ipu = IPu(self._path_to_config)
+                        if ipu.get_ip(requests_proxies=requests_proxies):
                             g = proxychains_conf_generator.Generator(
                                 proxy=line,
                                 quiet_mode=True,
@@ -222,7 +226,7 @@ class SSR:
                         pass
 
             xp.error('No available proxy in "{}". Remove it if do not need a proxy.'.format(
-                self._cfg['ssr_utils.proxy_file'],
+                self._cfg['ssr_utils.path_to_pre_proxy'],
             ))
             xp.ex()
 
@@ -479,8 +483,8 @@ class SSR:
         if path_to_file:
             self._path_to_config_file = path_to_file
 
-        xp.about_t('Generating', self.path_to_config_file, 'for shadowsocksr')
-        with open(self.path_to_config_file, 'wb') as f:
+        xp.about_t('Generating', self.path_to_ssr_conf, 'for shadowsocksr')
+        with open(self.path_to_ssr_conf, 'wb') as f:
             json_string = self.get_config_json_string(by_ip=by_ip)
             f.write(json_string.encode('utf-8'))
             xp.success()
@@ -521,7 +525,7 @@ class SSR:
         self._cmd += '{python} {python_ssr} -c {path_to_config}'.format(
             python=self._cfg['path.python'],
             python_ssr=self._cfg['path.python_ssr'],
-            path_to_config=self.path_to_config_file,
+            path_to_config=self.path_to_ssr_conf,
         )
 
         # By server_ip
@@ -571,9 +575,11 @@ class SSR:
         try:
             xp.about_t('Try to request for the IP address')
 
-            ip = ip_query(requests_proxies=proxy_ext.requests_proxies(host=self.local_address,
-                                                                      port=self.local_port,
-                                                                      ))
+            ipu = IPu(self._path_to_config)
+
+            ip = ipu.get_ip(requests_proxies=proxy_ext.requests_proxies(host=self.local_address,
+                                                                        port=self.local_port,
+                                                                        ))
             if ip:
                 xp.success('{} {}'.format(ip['ip'], ip['country']))
             else:
@@ -596,8 +602,8 @@ class SSR:
         return None
 
     def __remove_ssr_conf(self):
-        xp.about_t('Deleting', self.path_to_config_file, 'config file')
-        os.remove(self.path_to_config_file)
+        xp.about_t('Deleting', self.path_to_ssr_conf, 'config file')
+        os.remove(self.path_to_ssr_conf)
         xp.success()
 
     @staticmethod
