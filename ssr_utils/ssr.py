@@ -15,7 +15,6 @@ import xprint as xp
 import xbase64
 import urllib.parse
 import proxychains_conf_generator
-from ip_query import ip_query
 from ip_utils import IPu
 from .errors import *
 
@@ -50,7 +49,7 @@ class SSR:
 
         self._local_address = None
         self._local_port = None
-        self._path_to_config_file = None
+        self._path_to_ssr_conf = None
 
         self._exit_ip = None
 
@@ -77,7 +76,7 @@ class SSR:
 
         self._local_address = None
         self._local_port = None
-        self._path_to_config_file = None
+        self._path_to_ssr_conf = None
 
         self._exit_ip = None
 
@@ -177,7 +176,7 @@ class SSR:
 
     @property
     def path_to_ssr_conf(self):
-        return self._path_to_config_file or os.path.join(os.getcwd(), 'shadowsocksr-config.json')
+        return self._path_to_ssr_conf or os.path.join(os.getcwd(), 'shadowsocksr-config.json')
 
     @property
     def exit_ip(self):
@@ -481,7 +480,7 @@ class SSR:
             return None
 
         if path_to_file:
-            self._path_to_config_file = path_to_file
+            self._path_to_ssr_conf = path_to_file
 
         xp.about_t('Generating', self.path_to_ssr_conf, 'for shadowsocksr')
         with open(self.path_to_ssr_conf, 'wb') as f:
@@ -506,7 +505,7 @@ class SSR:
         # READY
         xp.job('CHECK AVAILABLE')
 
-        self._path_to_config_file = os.path.join(tempfile.gettempdir(), 'ssr_utils_{time}.json'.format(
+        self._path_to_ssr_conf = os.path.join(tempfile.gettempdir(), 'ssr_utils_{time}.json'.format(
             time=str(time.time()).replace('.', '').ljust(17, '0'),
         ))
 
