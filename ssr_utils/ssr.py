@@ -4,18 +4,18 @@ import sys
 import time
 import socket
 import requests_cache
-import list_ext
-import file_ext
-import proxy_ext
+import proxy_fn
 import subprocess
 import profig
 import tempfile
 import common_patterns
-import xprint as xp
-import xbase64
+import cli_print as cp
 import urllib.parse
 import proxychains_conf_generator
-from ip_utils import IPu
+import ip_query
+from qwert import list_fn
+from qwert import file_fn
+from qwert import base64
 from .errors import *
 
 
@@ -24,7 +24,7 @@ class SSR:
         self._cfg = profig.Config(path_to_config)
         self._cfg.init('path.python', '/usr/bin/python3')
         self._cfg.init('path.python_ssr', '/data/repo/shadowsocksr/shadowsocks/local.py')
-        self._cfg.init('path.proxychains4', '/usr/local/bin/proxychains4')
+        self._cfg.init('path.proxychains4', '/usr/bin/proxychains4')
         self._cfg.init('ssr_utils.local_port', 13431)
         self._cfg.init('ssr_utils.path_to_pre_proxy', 'pre_proxy.txt')
         self._cfg.init('ssr_utils.proxychains4_cache_time', 300)
@@ -204,16 +204,16 @@ class SSR:
                     < self._cfg['ssr_utils.proxychains4_cache_time']:
                 return path_to_pc4_conf_file
 
-            lines = file_ext.read_to_list(self._cfg['ssr_utils.path_to_pre_proxy'])
+            lines = file_fn.read_to_list(self._cfg['ssr_utils.path_to_pre_proxy'])
             if lines:
-                lines = list_ext.unique(lines)
+                lines = list_fn.unique(lines)
                 for line in lines:
-                    requests_proxies = proxy_ext.line2requests_proxies(line)
+                    requests_proxies = proxy_fn.line2requests_proxies(line)
 
                     # valid, and generate pc4 conf
                     try:
-                        ipu = IPu(self._path_to_config)
-                        if ipu.get_ip(requests_proxies=requests_proxies):
+                        ip = ip_query.ip_query(requests_proxies=requests_proxies)
+                        if ip:
                             g = proxychains_conf_generator.Generator(
                                 proxy=line,
                                 quiet_mode=True,
@@ -221,13 +221,13 @@ class SSR:
                             return g.write(path_to_conf=path_to_pc4_conf_file)
 
                     except Exception as e:
-                        xp.error(e)
+                        cp.error(e)
                         pass
 
-            xp.error('No available proxy in "{}". Remove it if do not need a proxy.'.format(
+            cp.error('No available proxy in "{}". Remove it if do not need a proxy.'.format(
                 self._cfg['ssr_utils.path_to_pre_proxy'],
             ))
-            xp.ex()
+            cp.ex()
 
         return None
 
@@ -244,7 +244,7 @@ class SSR:
 
         for key in keys:
             if not getattr(self, key):
-                xp.error('Attribute `{}` is invalid.'.format(key))
+                cp.error('Attribute `{}` is invalid.'.format(key))
                 return True
         return False
 
@@ -329,28 +329,28 @@ class SSR:
             protocol=self._protocol,
             method=self._method,
             obfs=self._obfs,
-            password=xbase64.encode(self._password, urlsafe=True))
+            password=base64.encode(self._password, urlsafe=True))
 
         suffix_list = []
         if self._proto_param:
             suffix_list.append('protoparam={proto_param}'.format(
-                proto_param=xbase64.encode(self.proto_param, urlsafe=True),
+                proto_param=base64.encode(self.proto_param, urlsafe=True),
             ))
 
         if self._obfs_param:
             suffix_list.append('obfsparam={obfs_param}'.format(
-                obfs_param=xbase64.encode(self.obfs_param, urlsafe=True),
+                obfs_param=base64.encode(self.obfs_param, urlsafe=True),
             ))
 
         suffix_list.append('remarks={remarks}'.format(
-            remarks=xbase64.encode(self.remarks, urlsafe=True),
+            remarks=base64.encode(self.remarks, urlsafe=True),
         ))
 
         suffix_list.append('group={group}'.format(
-            group=xbase64.encode(self.group, urlsafe=True),
+            group=base64.encode(self.group, urlsafe=True),
         ))
 
-        return 'ssr://{}'.format(xbase64.encode('{prefix}/?{suffix}'.format(
+        return 'ssr://{}'.format(base64.encode('{prefix}/?{suffix}'.format(
             prefix=prefix,
             suffix='&'.join(suffix_list),
         ), urlsafe=True))
@@ -367,12 +367,12 @@ class SSR:
             elif r[0] == 'ss':
                 self.__parse_ss(r[1])
         except Exception as e:
-            xp.error(e)
+            cp.error(e)
             pass
 
     def __parse_ssr(self, ssr_base64: str):
         ssr = ssr_base64.split('#')[0]
-        ssr = xbase64.decode(ssr)
+        ssr = base64.decode(ssr)
 
         if isinstance(ssr, bytes):
             return
@@ -385,12 +385,12 @@ class SSR:
         self._protocol = ssr_list[2]
         self._method = ssr_list[3]
         self._obfs = ssr_list[4]
-        self._password = xbase64.decode(password_and_params[0])
+        self._password = base64.decode(password_and_params[0])
 
         params_dict = dict()
         for param in password_and_params[1].split('&'):
             param_list = param.split('=')
-            params_dict[param_list[0]] = xbase64.decode(param_list[1])
+            params_dict[param_list[0]] = base64.decode(param_list[1])
 
         params_dict_keys = params_dict.keys()
         for key in ['proto_param', 'obfs_param', 'remarks', 'group']:
@@ -402,7 +402,7 @@ class SSR:
         ss = ss_base64.split('#')
         if len(ss) > 1:
             self._remarks = urllib.parse.unquote(ss[1])
-        ss = xbase64.decode(ss[0])
+        ss = base64.decode(ss[0])
 
         if isinstance(ss, bytes):
             return
@@ -482,13 +482,13 @@ class SSR:
         if path_to_file:
             self._path_to_ssr_conf = path_to_file
 
-        xp.about_t('Generating', self.path_to_ssr_conf, 'for shadowsocksr')
+        cp.about_t('Generating', self.path_to_ssr_conf, 'for shadowsocksr')
         with open(self.path_to_ssr_conf, 'wb') as f:
             json_string = self.get_config_json_string(by_ip=by_ip)
             f.write(json_string.encode('utf-8'))
-            xp.success()
+            cp.success()
             if plain_to_console:
-                xp.plain_text(json_string)
+                cp.plain_text(json_string)
 
     @property
     def is_available(self):
@@ -503,7 +503,7 @@ class SSR:
             raise SystemNotSupportedException('Cannot use property `is_available` in windows.')
 
         # READY
-        xp.job('CHECK AVAILABLE')
+        cp.job('CHECK AVAILABLE')
 
         self._path_to_ssr_conf = os.path.join(tempfile.gettempdir(), 'ssr_utils_{time}.json'.format(
             time=str(time.time()).replace('.', '').ljust(17, '0'),
@@ -512,7 +512,7 @@ class SSR:
         # cmd with pc4
         pc4_conf_file = self.pc4_conf_file
         if pc4_conf_file:
-            xp.about_to('Use', pc4_conf_file, 'for proxychains')
+            cp.about_to('Use', pc4_conf_file, 'for proxychains')
             self._cmd = '{path_to_pc4} -q -f {pc4_conf_file} '.format(
                 path_to_pc4=self._cfg['path.proxychains4'],
                 pc4_conf_file=pc4_conf_file,
@@ -548,7 +548,7 @@ class SSR:
         return None
 
     def __ip_query(self, hint: str):
-        xp.about_t('Start a sub progress of SSR', hint)
+        cp.about_t('Start a sub progress of SSR', hint)
 
         # sub progress
         self._sub_progress = subprocess.Popen(
@@ -560,39 +560,38 @@ class SSR:
 
         # Group PID
         gpid = os.getpgid(self._sub_progress.pid)
-        xp.wr(xp.Fore.LIGHTYELLOW_EX + '(G)PID {} '.format(gpid))
+        cp.wr(cp.Fore.LIGHTYELLOW_EX + '(G)PID {} '.format(gpid))
 
         # wait, during the progress launching.
         for i in range(0, 5):
-            xp.wr(xp.Fore.LIGHTBLUE_EX + '.')
-            xp.fi()
+            cp.wr(cp.Fore.LIGHTBLUE_EX + '.')
+            cp.fi()
             time.sleep(1)
-        xp.success(' Next.')
+        cp.success(' Next.')
 
         # Request for IP
         ip = None
         try:
-            xp.about_t('Try to request for the IP address')
+            cp.about_t('Try to request for the IP address')
 
-            ipu = IPu(self._path_to_config)
+            ip = ip_query.ip_query(requests_proxies=proxy_fn.requests_proxies(host=self.local_address,
+                                                                              port=self.local_port,
+                                                                              ))
 
-            ip = ipu.get_ip(requests_proxies=proxy_ext.requests_proxies(host=self.local_address,
-                                                                        port=self.local_port,
-                                                                        ))
             if ip:
-                xp.success('{} {}'.format(ip['ip'], ip['country']))
+                cp.success('{} {}'.format(ip['ip'], ip['country']))
             else:
-                xp.fx()
+                cp.fx()
 
         except Exception as e:
             # ConnectionError?
-            xp.fx()
-            xp.error(e)
+            cp.fx()
+            cp.error(e)
 
         finally:
-            xp.about_t('Kill SSR sub progress', 'PID {pid}'.format(pid=gpid))
+            cp.about_t('Kill SSR sub progress', 'PID {pid}'.format(pid=gpid))
             os.killpg(gpid, 9)
-            xp.success('Done.')
+            cp.success('Done.')
 
         if ip:
             self._exit_ip = ip
@@ -601,22 +600,22 @@ class SSR:
         return None
 
     def __remove_ssr_conf(self):
-        xp.about_t('Deleting', self.path_to_ssr_conf, 'config file')
+        cp.about_t('Deleting', self.path_to_ssr_conf, 'config file')
         os.remove(self.path_to_ssr_conf)
-        xp.success()
+        cp.success()
 
     @staticmethod
     def __is_port_open(port: int):
-        xp.about_t('Checking', 'local port #.{}'.format(port))
+        cp.about_t('Checking', 'local port #.{}'.format(port))
 
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             s.connect(('127.0.0.1', port))
             s.shutdown(2)
-            xp.success('is open')
+            cp.success('is open')
             return True
         except:
-            xp.success('is down')
+            cp.success('is down')
             return False
 
 
@@ -651,11 +650,11 @@ def get_urls_by_subscribe(url: str,
 
 
 def get_urls_by_base64(text_base64: str):
-    text = xbase64.decode(text_base64)
+    text = base64.decode(text_base64)
     if isinstance(text, str):
-        return list_ext.remove_and_unique(text.split('\n'))
+        return list_fn.remove_and_unique(text.split('\n'))
     return list()
 
 
 def get_urls_by_string(string: str):
-    return list_ext.unique(common_patterns.findall_ssr_urls(string=string))
+    return list_fn.unique(common_patterns.findall_ssr_urls(string=string))
